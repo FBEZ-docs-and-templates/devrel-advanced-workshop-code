@@ -17,10 +17,14 @@
 #include "esp_event.h"
 #include "esp_netif.h"
 #include "protocol_examples_common.h"
+#include "alarm.h"
+#include "esp_timer.h"
 
 #include "esp_log.h"
 #include "mqtt_client.h"
 #include "temperature_sensor.h"
+
+#define TEMPERATURE_MEAS_PERIOD_IN_S 5
 
 static const char *TAG = "mqtt_example";
 
@@ -52,37 +56,24 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "data_3", 0, 1, 0);
-        ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
 
-        msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 0);
+        // Subscribing to sensor/temperature to check the publishing of data
+        msg_id = esp_mqtt_client_subscribe(client, "/sensor/temperature", 0);
         ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
-        msg_id = esp_mqtt_client_subscribe(client, "/topic/qos1", 1);
-        ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
-
-        msg_id = esp_mqtt_client_unsubscribe(client, "/topic/qos1");
-        ESP_LOGI(TAG, "sent unsubscribe successful, msg_id=%d", msg_id);
-        break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
         break;
 
     case MQTT_EVENT_SUBSCRIBED:
-        ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-        msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
-        ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_UNSUBSCRIBED:
-        ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
         break;
     case MQTT_EVENT_PUBLISHED:
         ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
         break;
     case MQTT_EVENT_DATA:
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-        printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-        printf("DATA=%.*s\r\n", event->data_len, event->data);
         break;
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
@@ -91,7 +82,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             log_error_if_nonzero("reported from tls stack", event->error_handle->esp_tls_stack_err);
             log_error_if_nonzero("captured as transport's socket errno",  event->error_handle->esp_transport_sock_errno);
             ESP_LOGI(TAG, "Last errno string (%s)", strerror(event->error_handle->esp_transport_sock_errno));
-
         }
         break;
     default:
@@ -100,7 +90,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     }
 }
 
-static void mqtt_app_start(void)
+esp_mqtt_client_handle_t mqtt_app_start(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = CONFIG_BROKER_URL,
@@ -110,6 +100,7 @@ static void mqtt_app_start(void)
     /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(client);
+    return client;
 }
 
 void app_main(void)
@@ -121,10 +112,6 @@ void app_main(void)
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("mqtt_client", ESP_LOG_VERBOSE);
     esp_log_level_set("mqtt_example", ESP_LOG_VERBOSE);
-    esp_log_level_set("transport_base", ESP_LOG_VERBOSE);
-    esp_log_level_set("esp-tls", ESP_LOG_VERBOSE);
-    esp_log_level_set("transport", ESP_LOG_VERBOSE);
-    esp_log_level_set("outbox", ESP_LOG_VERBOSE);
 
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
@@ -136,17 +123,11 @@ void app_main(void)
         return;
     }
 
-    float temp;
-    for (int i = 0; i < 10; ++i) {
-        if (temperature_sensor_read_celsius(sensor, &temp) == ESP_OK) {
-            ESP_LOGI(TAG, "Temperature: %.2f °C", temp);
-        } else {
-            ESP_LOGW(TAG, "Failed to read temperature");
-        }
-        vTaskDelay(pdMS_TO_TICKS(1000));
+    alarm_t *alarm = alarm_create(); // 10% chance
+    if (!alarm) {
+        ESP_LOGE("ALARM", "Failed to initialize alarm");
+        return;
     }
-
-    temperature_sensor_delete(sensor);
 
     /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
      * Read "Establishing Wi-Fi or Ethernet Connection" section in
@@ -154,7 +135,41 @@ void app_main(void)
      */
     ESP_ERROR_CHECK(example_connect());
 
+    esp_mqtt_client_handle_t client = mqtt_app_start();
 
+    float temp;
+    char payload[64];
 
-    mqtt_app_start();
+    int64_t start_time = esp_timer_get_time(); // in microseconds
+
+    bool previous_alarm_set = false;
+
+    while (1) {
+
+        int64_t now = esp_timer_get_time();
+        if ((now - start_time) >= TEMPERATURE_MEAS_PERIOD_IN_S * 1e6) { 
+            start_time = esp_timer_get_time();
+            if (temperature_sensor_read_celsius(sensor, &temp) == ESP_OK) {
+            ESP_LOGI(TAG, "Temperature: %.2f °C", temp);
+            snprintf(payload, sizeof(payload), "%.2f", temp);
+            esp_mqtt_client_publish(client, "/sensor/temperature", payload, 0, 1, 0);
+            
+            } else {
+                ESP_LOGW(TAG, "Failed to read temperature");
+            }
+        }
+
+        
+        if(is_alarm_set(alarm) && !previous_alarm_set){ // to avoid multiple messages
+            printf("ALARM ON!!\n");
+        }
+        previous_alarm_set = is_alarm_set(alarm);
+
+        vTaskDelay(10); // to reset the watchdog
+
+    }
+
+    temperature_sensor_delete(sensor);
+    alarm_delete(alarm);
+
 }
