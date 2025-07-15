@@ -4,8 +4,8 @@
 #include "esp_timer.h" // for esp_timer_get_time()
 
 // Define internal behavior constants
-#define ALARM_THRESHOLD_PERCENT     2     // 2% chance
-#define ALARM_REFRESH_INTERVAL_MS   1000   // reevaluate every 1000 ms
+// #define ALARM_THRESHOLD_PERCENT     2     // 2% chance
+// #define ALARM_REFRESH_INTERVAL_MS   1000   // reevaluate every 1000 ms
 
 // Internal alarm structure (hidden from user)
 struct alarm_t {
@@ -31,9 +31,9 @@ bool is_alarm_set(alarm_t *alarm)
     int64_t now_us = esp_timer_get_time();
     int64_t elapsed_us = now_us - alarm->last_check_time_us;
 
-    if (elapsed_us >= ALARM_REFRESH_INTERVAL_MS * 1000) {
+    if (elapsed_us >= CONFIG_ALARM_REFRESH_INTERVAL_MS * 1000) {
         uint32_t rand_val = esp_random() % 100;
-        alarm->last_state = rand_val < ALARM_THRESHOLD_PERCENT;
+        alarm->last_state = rand_val < CONFIG_ALARM_THRESHOLD_PERCENT;
         alarm->last_check_time_us = now_us;
     }
 
