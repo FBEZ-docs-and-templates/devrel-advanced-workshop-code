@@ -33,7 +33,9 @@ bool is_alarm_set(alarm_t *alarm)
         uint32_t rand_val = esp_random() % 100;
         alarm->last_state = rand_val < CONFIG_ALARM_THRESHOLD_PERCENT;
         alarm->last_check_time_us = now_us;
-    // }else{
+    }
+    // *** BUG WAS HERE: ***
+    // else{
     //     alarm = NULL;
     // }
 
