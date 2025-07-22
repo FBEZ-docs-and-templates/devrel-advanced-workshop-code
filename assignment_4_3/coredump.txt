@@ -1,0 +1,4 @@
+Executing action: coredump-info
+Serial port /dev/cu.usbmodem1131101
+Connecting....
+Detecting chip type... ESP32-C3
