@@ -1,99 +1,114 @@
-# ESP-IDF MQTT Example with Temperature Sensors
+## Assignment 1.1 -- Solution
 
-This example project demonstrates using MQTT over TCP to publish and subscribe to topics with the ESP32 platform. It supports reading temperature from either the ESP32’s internal temperature sensor or an external SHTC3 sensor, based on a configuration flag.
-
-## Features
-
-- Wi-Fi or Ethernet connectivity (selectable via `menuconfig`)
-- MQTT client for publishing/subscribing to topics
-- Configurable sensor mode: internal or external (SHTC3 via I2C)
-- Periodic temperature logging
-- Full MQTT event handling with diagnostic logging
+This repository contains the solution to an ESP-IDF assignment focused on implementing an `alarm` component. The aim is to encapsulate the logic for periodic alarm triggering in a reusable and configurable module.
 
 ---
 
-## Sensor Support
+## Overview
 
-You can choose between two sensor sources at compile time:
+The assignment requires the creation of an `alarm` component, refactoring the original application code to use this new module, and making certain internal thresholds configurable via `menuconfig`.
 
-- **Internal sensor**: Uses the ESP32’s onboard temperature sensor
-- **SHTC3 external sensor**: Connects via I2C and provides more accurate readings
-
-Selection is done through the `menuconfig` system. The default is the internal sensor.
+The alarm system simulates an event that has a configurable probability of being triggered at a given interval.
 
 ---
 
-## Getting Started
+## Assignment Objectives
 
-### 1. Clone the repository
+The assignment was completed in the following steps:
 
-```bash
-git clone https://github.com/your-username/esp-idf-mqtt-example.git
-cd esp-idf-mqtt-example
-````
-
-### 2. Open with Visual Studio Code
-
-Ensure you have the [Espressif VSCode extension](https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension) installed and set up correctly.
-
-* Open the folder in VSCode
-* Use the **ESP-IDF: Set Espressif Device Target** command to select your target (e.g., `esp32`)
-* Run **ESP-IDF: Configure project** to open the menuconfig interface
-
-### 3. Configure the project
-
-In the menuconfig interface:
-
-* **Example Configuration**
-
-  * Set **Wi-Fi SSID and Password**
-  * Set **MQTT Broker URL** (e.g., `mqtt://broker.hivemq.com`)
-  * Select **Sensor Type** (internal or SHTC3)
-* Optionally, adjust logging verbosity or MQTT settings under related sections
-
-### 4. Build, Flash and Monitor
-
-Use the VSCode Command Palette:
-
-* **ESP-IDF: Build Project**
-* **ESP-IDF: Flash (UART)**
-* **ESP-IDF: Monitor**
+1. Verified that the base example runs correctly on the target hardware.
+2. Created a new `alarm` component.
+3. Moved existing alarm logic into the component.
+4. Replaced hardcoded configuration values with user-configurable `menuconfig` options.
 
 ---
 
-## MQTT Topics
+## alarm Component API
 
-| Topic         | Direction | QoS | Description                   |
-| ------------- | --------- | --- | ----------------------------- |
-| `/topic/qos1` | Publish   | 1   | Sends test data on connection |
-| `/topic/qos0` | Publish   | 0   | Sends data after subscription |
-| `/topic/qos0` | Subscribe | 0   | Listens for incoming messages |
-| `/topic/qos1` | Subscribe | 1   | Subscribes then unsubscribes  |
+The `alarm` component exposes the following functions:
+
+```c
+alarm_t *alarm_create(void);
+bool is_alarm_set(alarm_t *alarm);
+void alarm_delete(alarm_t *alarm);
+```
+
+* `alarm_create()`: Initializes internal state.
+* `is_alarm_set()`: Returns `true` if the alarm is active based on random evaluation and time interval.
+* `alarm_delete()`: Frees allocated memory.
 
 ---
 
-## Example Output
+## Configuration Parameters
+
+The component includes a `Kconfig` file, allowing configuration via `menuconfig`:
+
+| Parameter                   | Default | Description                                        |
+| --------------------------- | ------- | -------------------------------------------------- |
+| `ALARM_THRESHOLD_PERCENT`   | 2       | Percentage chance the alarm will be triggered      |
+| `ALARM_REFRESH_INTERVAL_MS` | 1000    | Time interval (ms) between alarm state evaluations |
+
+These parameters replace previously hardcoded `#define` constants.
+
+---
+
+## Component Implementation
+
+The component is structured as follows:
 
 ```
-[APP] Free memory: 320000 bytes
-Temperature: 27.13 °C
-MQTT_EVENT_CONNECTED
-sent publish successful, msg_id=1234
-MQTT_EVENT_DATA
-TOPIC=/topic/qos0
-DATA=hello from broker
+components/alarm/
+├── alarm.c                   // Component implementation
+├── include/
+│   └── alarm.h               // Public header file
+├── Kconfig                   // Configuration options
+├── CMakeLists.txt            // Component build file
+```
+
+### `CMakeLists.txt` Configuration
+
+The component registers a dependency on `esp_timer`, which is required for time tracking:
+
+```cmake
+idf_component_register(SRCS "alarm.c"
+                       REQUIRES esp_timer
+                       INCLUDE_DIRS "include")
 ```
 
 ---
 
-## Notes
+## Example Behavior
 
-* The SHTC3 sensor should be connected to the default I2C pins (customizable via menuconfig).
-* Temperature readings are taken periodically at 1-second intervals during startup.
-* MQTT broker URI must use the format `mqtt://<hostname>` or `mqtt://<ip>`.
+The `is_alarm_set()` function checks if a time interval (configurable via `CONFIG_ALARM_REFRESH_INTERVAL_MS`) has passed since the last evaluation. If so, a new random value is generated and compared to `CONFIG_ALARM_THRESHOLD_PERCENT` to determine whether the alarm should be set.
+
+The state is updated only once per interval, reducing redundant random evaluations and ensuring consistent behavior.
 
 ---
 
-## License
+## Usage Example
 
-This example is released into the public domain or under the CC0 license, at your option.
+```c
+#include "alarm.h"
+
+void app_main(void) {
+    alarm_t *alarm = alarm_create();
+    if (!alarm) {
+        // Handle error
+    }
+
+    while (true) {
+        if (is_alarm_set(alarm)) {
+            // Take action
+        }
+        vTaskDelay(pdMS_TO_TICKS(100)); // Polling interval
+    }
+
+    alarm_delete(alarm);
+}
+```
+
+---
+
+## Purpose
+
+This repository serves as a reference implementation for modularizing simple logic into an ESP-IDF component. It demonstrates how to encapsulate functionality, expose a clean API, and provide configuration flexibility via `menuconfig`.

@@ -1,99 +1,74 @@
-# ESP-IDF MQTT Example with Temperature Sensors
+# Assignment 1.3 -- Solution
 
-This example project demonstrates using MQTT over TCP to publish and subscribe to topics with the ESP32 platform. It supports reading temperature from either the ESP32’s internal temperature sensor or an external SHTC3 sensor, based on a configuration flag.
+This repository contains the solution code for Assignment 1.3. The goal of this assignment is to practice using multiple `sdkconfig` configurations to manage different build variants (debug and production) of the same ESP-IDF project.
 
-## Features
+## Objective
 
-- Wi-Fi or Ethernet connectivity (selectable via `menuconfig`)
-- MQTT client for publishing/subscribing to topics
-- Configurable sensor mode: internal or external (SHTC3 via I2C)
-- Periodic temperature logging
-- Full MQTT event handling with diagnostic logging
+The assignment demonstrates how to:
 
----
+* Create separate configuration files for production and debugging
+* Control logging behavior using `sdkconfig`
+* Use profile files to streamline the build process with `idf.py`
 
-## Sensor Support
-
-You can choose between two sensor sources at compile time:
-
-- **Internal sensor**: Uses the ESP32’s onboard temperature sensor
-- **SHTC3 external sensor**: Connects via I2C and provides more accurate readings
-
-Selection is done through the `menuconfig` system. The default is the internal sensor.
+While the functional behavior of the application remains unchanged, this task introduces the concept of configuration-based project versioning using standard ESP-IDF tooling.
 
 ---
 
-## Getting Started
+## Project Structure
 
-### 1. Clone the repository
+The folder layout after completing this assignment is as follows:
+
+```
+.
+|-- main
+|   |-- CMakeLists.txt
+|   |-- app_main.c
+|   `-- idf_component.yml
+|-- profiles
+|   |-- debug
+|   `-- prod
+|-- sdkconfig
+|-- sdkconfig.debug
+|-- sdkconfig.defaults
+|-- sdkconfig.old
+`-- sdkconfig.prod
+```
+
+### Key Files
+
+* `sdkconfig.defaults`: Base configuration, setting the ESP32-C3 target
+* `sdkconfig.prod`: Suppresses both bootloader and application logs
+* `sdkconfig.debug`: Enables default logging (e.g. `INFO` level)
+* `profiles/prod`: Preconfigured build arguments for the production profile
+* `profiles/debug`: Preconfigured build arguments for the debug profile
+
+---
+
+## How to Build
+
+You can build and flash either version of the project using the corresponding profile:
+
+### Build the Production Version
 
 ```bash
-git clone https://github.com/your-username/esp-idf-mqtt-example.git
-cd esp-idf-mqtt-example
-````
-
-### 2. Open with Visual Studio Code
-
-Ensure you have the [Espressif VSCode extension](https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension) installed and set up correctly.
-
-* Open the folder in VSCode
-* Use the **ESP-IDF: Set Espressif Device Target** command to select your target (e.g., `esp32`)
-* Run **ESP-IDF: Configure project** to open the menuconfig interface
-
-### 3. Configure the project
-
-In the menuconfig interface:
-
-* **Example Configuration**
-
-  * Set **Wi-Fi SSID and Password**
-  * Set **MQTT Broker URL** (e.g., `mqtt://broker.hivemq.com`)
-  * Select **Sensor Type** (internal or SHTC3)
-* Optionally, adjust logging verbosity or MQTT settings under related sections
-
-### 4. Build, Flash and Monitor
-
-Use the VSCode Command Palette:
-
-* **ESP-IDF: Build Project**
-* **ESP-IDF: Flash (UART)**
-* **ESP-IDF: Monitor**
-
----
-
-## MQTT Topics
-
-| Topic         | Direction | QoS | Description                   |
-| ------------- | --------- | --- | ----------------------------- |
-| `/topic/qos1` | Publish   | 1   | Sends test data on connection |
-| `/topic/qos0` | Publish   | 0   | Sends data after subscription |
-| `/topic/qos0` | Subscribe | 0   | Listens for incoming messages |
-| `/topic/qos1` | Subscribe | 1   | Subscribes then unsubscribes  |
-
----
-
-## Example Output
-
+idf.py @profiles/prod build
+idf.py @profiles/prod -p <YOUR_PORT> flash monitor
 ```
-[APP] Free memory: 320000 bytes
-Temperature: 27.13 °C
-MQTT_EVENT_CONNECTED
-sent publish successful, msg_id=1234
-MQTT_EVENT_DATA
-TOPIC=/topic/qos0
-DATA=hello from broker
+
+### Build the Debug Version
+
+```bash
+idf.py @profiles/debug build
+idf.py @profiles/debug -p <YOUR_PORT> flash monitor
 ```
+
+Make sure the correct port is selected in place of `<YOUR_PORT>`.
 
 ---
 
 ## Notes
 
-* The SHTC3 sensor should be connected to the default I2C pins (customizable via menuconfig).
-* Temperature readings are taken periodically at 1-second intervals during startup.
-* MQTT broker URI must use the format `mqtt://<hostname>` or `mqtt://<ip>`.
+* The `save-defconfig` tool was used to generate minimal config diffs for `sdkconfig.prod` and `sdkconfig.debug`.
+* This assignment focuses only on modifying configuration files. No application logic changes were made.
+* These configuration files can be extended with additional settings as needed in future assignments or projects.
 
----
-
-## License
-
-This example is released into the public domain or under the CC0 license, at your option.
