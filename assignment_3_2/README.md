@@ -1,99 +1,97 @@
-# ESP-IDF MQTT Example with Temperature Sensors
+# Assignment 3.2 -- Solution 
 
-This example project demonstrates using MQTT over TCP to publish and subscribe to topics with the ESP32 platform. It supports reading temperature from either the ESP32’s internal temperature sensor or an external SHTC3 sensor, based on a configuration flag.
+This repository contains the solution code for **Assignment 3.2** of the ESP-IDF Advanced Workshop. The objective of this exercise is to simulate a runtime crash, collect a core dump, analyze it, and fix the issue causing the crash.
 
-## Features
+>[!NOTE]
+> After fixing the bugs, the code becomes identical to the assignment 2.2 code. 
 
-- Wi-Fi or Ethernet connectivity (selectable via `menuconfig`)
-- MQTT client for publishing/subscribing to topics
-- Configurable sensor mode: internal or external (SHTC3 via I2C)
-- Periodic temperature logging
-- Full MQTT event handling with diagnostic logging
+## Overview
 
----
+In this assignment, you neede to:
 
-## Sensor Support
+1. Enable core dump support in your ESP-IDF project.
+2. Build and flash the application to your ESP32-C3 device.
+3. Trigger a runtime fault and capture a core dump.
+4. Analyze the resulting crash data to understand the root cause.
+5. Fix the underlying bug(s) and verify the solution.
 
-You can choose between two sensor sources at compile time:
+This hands-on activity is designed to give you practical experience with post-mortem debugging using ESP-IDF's core dump tools.
 
-- **Internal sensor**: Uses the ESP32’s onboard temperature sensor
-- **SHTC3 external sensor**: Connects via I2C and provides more accurate readings
+## Prerequisites
 
-Selection is done through the `menuconfig` system. The default is the internal sensor.
+* ESP-IDF environment properly configured (version 5.4.2 or similar)
+* ESP32-C3 hardware
+* Base project: [assignment\_3\_2\_base](https://github.com/FBEZ-docs-and-templates/devrel-advanced-workshop-code/tree/main/assignment_3_2_base)
 
----
+## Steps
 
-## Getting Started
+### 1. Enable Core Dump to Flash
 
-### 1. Clone the repository
+Launch the menuconfig tool:
 
-```bash
-git clone https://github.com/your-username/esp-idf-mqtt-example.git
-cd esp-idf-mqtt-example
-````
-
-### 2. Open with Visual Studio Code
-
-Ensure you have the [Espressif VSCode extension](https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension) installed and set up correctly.
-
-* Open the folder in VSCode
-* Use the **ESP-IDF: Set Espressif Device Target** command to select your target (e.g., `esp32`)
-* Run **ESP-IDF: Configure project** to open the menuconfig interface
-
-### 3. Configure the project
-
-In the menuconfig interface:
-
-* **Example Configuration**
-
-  * Set **Wi-Fi SSID and Password**
-  * Set **MQTT Broker URL** (e.g., `mqtt://broker.hivemq.com`)
-  * Select **Sensor Type** (internal or SHTC3)
-* Optionally, adjust logging verbosity or MQTT settings under related sections
-
-### 4. Build, Flash and Monitor
-
-Use the VSCode Command Palette:
-
-* **ESP-IDF: Build Project**
-* **ESP-IDF: Flash (UART)**
-* **ESP-IDF: Monitor**
-
----
-
-## MQTT Topics
-
-| Topic         | Direction | QoS | Description                   |
-| ------------- | --------- | --- | ----------------------------- |
-| `/topic/qos1` | Publish   | 1   | Sends test data on connection |
-| `/topic/qos0` | Publish   | 0   | Sends data after subscription |
-| `/topic/qos0` | Subscribe | 0   | Listens for incoming messages |
-| `/topic/qos1` | Subscribe | 1   | Subscribes then unsubscribes  |
-
----
-
-## Example Output
-
-```
-[APP] Free memory: 320000 bytes
-Temperature: 27.13 °C
-MQTT_EVENT_CONNECTED
-sent publish successful, msg_id=1234
-MQTT_EVENT_DATA
-TOPIC=/topic/qos0
-DATA=hello from broker
+```sh
+idf.py menuconfig
 ```
 
+Navigate to:
+
+```
+Component config  --->
+  ESP System Settings  --->
+    Core dump destination (UART / Flash / None)  ---> Flash
+```
+
+This setting ensures that the crash data will be written to flash memory when a fault occurs.
+
+### 2. Build, Flash, and Monitor
+
+Build and flash the application:
+
+```sh
+idf.py build flash monitor
+```
+
+After the device starts, wait for the crash to occur. When it does, halt the monitor using:
+
+```sh
+Ctrl + ]
+```
+
+### 3. Extract Core Dump
+
+Open a new ESP-IDF terminal and run:
+
+```sh
+idf.py coredump-info > coredump.txt
+```
+
+This command extracts and decodes the core dump from the flash memory and saves it to `coredump.txt`.
+
+### 4. Analyze the Crash
+
+Open the generated `coredump.txt` file. Look for:
+
+* The crashing function and line (e.g., `is_alarm_set (alarm=0x0)`).
+* Stack trace and thread information.
+* Suspect NULL pointer dereference or out-of-bounds access.
+
+Use the call stack and register dump to identify where the crash occurred and why.
+
+### 5. Fix the Bug(s)
+
+Based on your analysis, modify the faulty code to:
+
+* Validate pointers before dereferencing
+* Ensure event data or handler arguments are not NULL
+* Apply appropriate error checks and fail-safes
+
+After making the changes, recompile, flash, and re-run the program. Confirm that the crash no longer occurs.
+
 ---
 
-## Notes
+## Additional Notes
 
-* The SHTC3 sensor should be connected to the default I2C pins (customizable via menuconfig).
-* Temperature readings are taken periodically at 1-second intervals during startup.
-* MQTT broker URI must use the format `mqtt://<hostname>` or `mqtt://<ip>`.
+* Core dumps are an invaluable tool for diagnosing faults in real-world embedded applications.
+* Always validate inputs to system components and external handlers.
+* Familiarity with GDB-like analysis of stack traces will be helpful in more advanced debugging scenarios.
 
----
-
-## License
-
-This example is released into the public domain or under the CC0 license, at your option.
