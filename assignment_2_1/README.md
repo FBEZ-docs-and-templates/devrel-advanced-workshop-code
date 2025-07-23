@@ -1,99 +1,52 @@
-# ESP-IDF MQTT Example with Temperature Sensors
+Here's a clean and professional `README.md` for your repository:
 
-This example project demonstrates using MQTT over TCP to publish and subscribe to topics with the ESP32 platform. It supports reading temperature from either the ESP32’s internal temperature sensor or an external SHTC3 sensor, based on a configuration flag.
+# Assignment 2.1 -- Solution
+
+This repository contains the solution for **Assignment 2.1** of the ESB25 Workshop series. The goal is to decouple temperature measurement and alarm publishing logic using the ESP-IDF default event loop.
+
+## Objective
+
+In this assignment, we refactor the existing application to use event-based architecture. Instead of directly invoking functions on timers, we post custom events to the default loop, which dispatches them to registered handlers. This improves modularity and prepares the codebase for handling multiple event sources.
+
+## Key Concepts
+
+* Use of `esp_event_loop_create_default` to manage application-level events.
+* Definition of custom event bases and event IDs for temperature and alarm handling.
+* Timer-driven event posting via `esp_timer_create` and `esp_timer_start_periodic`.
+* Registration of handler functions with `esp_event_handler_register`.
+* Modular separation between measurement, decision-making, and cloud publishing logic.
 
 ## Features
 
-- Wi-Fi or Ethernet connectivity (selectable via `menuconfig`)
-- MQTT client for publishing/subscribing to topics
-- Configurable sensor mode: internal or external (SHTC3 via I2C)
-- Periodic temperature logging
-- Full MQTT event handling with diagnostic logging
+* Posts temperature readings every 5 seconds.
+* Checks the alarm condition every 200 milliseconds.
+* Publishes events to the cloud using an abstract `cloud_manager` module.
+* Maintains system responsiveness through an event-driven main loop.
 
----
+## File Structure
 
-## Sensor Support
+* `app_main.c`: Main application logic, including event and timer setup.
+* `cloud_manager.*`: Abstracted interface for MQTT/cloud interactions.
+* `temperature_sensor.*`: Temperature reading module.
+* `alarm.*`: Alarm condition checker.
 
-You can choose between two sensor sources at compile time:
+## How It Works
 
-- **Internal sensor**: Uses the ESP32’s onboard temperature sensor
-- **SHTC3 external sensor**: Connects via I2C and provides more accurate readings
+1. Two timers periodically trigger events:
 
-Selection is done through the `menuconfig` system. The default is the internal sensor.
+   * Temperature event every 5 seconds
+   * Alarm check every 200 milliseconds
+2. These events are posted to the default event loop.
+3. Registered handlers process the events:
 
----
-
-## Getting Started
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-username/esp-idf-mqtt-example.git
-cd esp-idf-mqtt-example
-````
-
-### 2. Open with Visual Studio Code
-
-Ensure you have the [Espressif VSCode extension](https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension) installed and set up correctly.
-
-* Open the folder in VSCode
-* Use the **ESP-IDF: Set Espressif Device Target** command to select your target (e.g., `esp32`)
-* Run **ESP-IDF: Configure project** to open the menuconfig interface
-
-### 3. Configure the project
-
-In the menuconfig interface:
-
-* **Example Configuration**
-
-  * Set **Wi-Fi SSID and Password**
-  * Set **MQTT Broker URL** (e.g., `mqtt://broker.hivemq.com`)
-  * Select **Sensor Type** (internal or SHTC3)
-* Optionally, adjust logging verbosity or MQTT settings under related sections
-
-### 4. Build, Flash and Monitor
-
-Use the VSCode Command Palette:
-
-* **ESP-IDF: Build Project**
-* **ESP-IDF: Flash (UART)**
-* **ESP-IDF: Monitor**
-
----
-
-## MQTT Topics
-
-| Topic         | Direction | QoS | Description                   |
-| ------------- | --------- | --- | ----------------------------- |
-| `/topic/qos1` | Publish   | 1   | Sends test data on connection |
-| `/topic/qos0` | Publish   | 0   | Sends data after subscription |
-| `/topic/qos0` | Subscribe | 0   | Listens for incoming messages |
-| `/topic/qos1` | Subscribe | 1   | Subscribes then unsubscribes  |
-
----
-
-## Example Output
-
-```
-[APP] Free memory: 320000 bytes
-Temperature: 27.13 °C
-MQTT_EVENT_CONNECTED
-sent publish successful, msg_id=1234
-MQTT_EVENT_DATA
-TOPIC=/topic/qos0
-DATA=hello from broker
-```
-
----
+   * Temperature handler reads the sensor and publishes the value.
+   * Alarm handler checks for an active alarm and notifies the cloud if triggered.
 
 ## Notes
 
-* The SHTC3 sensor should be connected to the default I2C pins (customizable via menuconfig).
-* Temperature readings are taken periodically at 1-second intervals during startup.
-* MQTT broker URI must use the format `mqtt://<hostname>` or `mqtt://<ip>`.
+* The event loop abstraction is especially useful when more components (e.g., GPIO interrupts, network events) are added.
+* This assignment lays the groundwork for more advanced event-driven designs, as explored in future exercises.
 
----
+## Next Steps
 
-## License
-
-This example is released into the public domain or under the CC0 license, at your option.
+For an extension of this project with GPIO-triggered events, continue with [Assignment 2.2](https://your-link-to-assignment-2-2).
