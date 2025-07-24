@@ -1,99 +1,84 @@
-# ESP-IDF MQTT Example with Temperature Sensors
+# Assignment 4.1 -- Solution
 
-This example project demonstrates using MQTT over TCP to publish and subscribe to topics with the ESP32 platform. It supports reading temperature from either the ESP32’s internal temperature sensor or an external SHTC3 sensor, based on a configuration flag.
+This folder contains the solution of the ESP-IDF advanced workshop. 
 
-## Features
+## 1. Objective
 
-- Wi-Fi or Ethernet connectivity (selectable via `menuconfig`)
-- MQTT client for publishing/subscribing to topics
-- Configurable sensor mode: internal or external (SHTC3 via I2C)
-- Periodic temperature logging
-- Full MQTT event handling with diagnostic logging
+The objective of this assignment is to modify the partition table to enable Over-the-Air (OTA) firmware updates. This involves replacing the default single-app layout with one that supports a factory app and two OTA partitions.
 
----
+## 2. Key Concepts
 
-## Sensor Support
+* **Partition Table**: Defines how flash memory is allocated in ESP32 devices.
+* **OTA (Over-the-Air) Updates**: Mechanism to update firmware remotely without physical access to the device.
+* **`esptool.py`**: Utility to read and write ESP32 flash memory.
+* **`gen_esp32part.py`**: Script to convert binary partition tables to human-readable format.
+* **ESP-IDF `menuconfig`**: Configuration interface to customize build options including partition layout and flash size.
 
-You can choose between two sensor sources at compile time:
+## 3. Features
 
-- **Internal sensor**: Uses the ESP32’s onboard temperature sensor
-- **SHTC3 external sensor**: Connects via I2C and provides more accurate readings
+* Reads and decodes the existing partition table from flash memory.
+* Switches to the built-in *Factory app, two OTA definitions* partition scheme.
+* Expands flash size to accommodate multiple app partitions.
+* Verifies changes by re-reading and decoding the updated partition table.
 
-Selection is done through the `menuconfig` system. The default is the internal sensor.
+## 4. Implementation Overview
 
----
+### Step 1: Check Current Partition Table
 
-## Getting Started
+1. **Read flash memory:**
 
-### 1. Clone the repository
+   ```bash
+   esptool.py -p <YOUR-PORT> read_flash 0x8000 0x1000 partition_table.bin
+   ```
 
-```bash
-git clone https://github.com/your-username/esp-idf-mqtt-example.git
-cd esp-idf-mqtt-example
-````
+2. **Convert to readable format:**
 
-### 2. Open with Visual Studio Code
+   ```bash
+   python $IDF_PATH/components/partition_table/gen_esp32part.py partition_table.bin
+   ```
 
-Ensure you have the [Espressif VSCode extension](https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension) installed and set up correctly.
-
-* Open the folder in VSCode
-* Use the **ESP-IDF: Set Espressif Device Target** command to select your target (e.g., `esp32`)
-* Run **ESP-IDF: Configure project** to open the menuconfig interface
-
-### 3. Configure the project
-
-In the menuconfig interface:
-
-* **Example Configuration**
-
-  * Set **Wi-Fi SSID and Password**
-  * Set **MQTT Broker URL** (e.g., `mqtt://broker.hivemq.com`)
-  * Select **Sensor Type** (internal or SHTC3)
-* Optionally, adjust logging verbosity or MQTT settings under related sections
-
-### 4. Build, Flash and Monitor
-
-Use the VSCode Command Palette:
-
-* **ESP-IDF: Build Project**
-* **ESP-IDF: Flash (UART)**
-* **ESP-IDF: Monitor**
-
----
-
-## MQTT Topics
-
-| Topic         | Direction | QoS | Description                   |
-| ------------- | --------- | --- | ----------------------------- |
-| `/topic/qos1` | Publish   | 1   | Sends test data on connection |
-| `/topic/qos0` | Publish   | 0   | Sends data after subscription |
-| `/topic/qos0` | Subscribe | 0   | Listens for incoming messages |
-| `/topic/qos1` | Subscribe | 1   | Subscribes then unsubscribes  |
-
----
-
-## Example Output
+Example output for default table:
 
 ```
-[APP] Free memory: 320000 bytes
-Temperature: 27.13 °C
-MQTT_EVENT_CONNECTED
-sent publish successful, msg_id=1234
-MQTT_EVENT_DATA
-TOPIC=/topic/qos0
-DATA=hello from broker
+# ESP-IDF Partition Table
+# Name, Type, SubType, Offset, Size, Flags
+nvs,data,nvs,0x9000,24K,
+phy_init,data,phy,0xf000,4K,
+factory,app,factory,0x10000,1M,
+coredump,data,coredump,0x110000,64K,
 ```
 
----
+### Step 2: Change Partition Scheme
 
-## Notes
+* Open `menuconfig`:
 
-* The SHTC3 sensor should be connected to the default I2C pins (customizable via menuconfig).
-* Temperature readings are taken periodically at 1-second intervals during startup.
-* MQTT broker URI must use the format `mqtt://<hostname>` or `mqtt://<ip>`.
+  ```
+  idf.py menuconfig
+  ```
 
----
+* Navigate to:
 
-## License
+  * `Partition Table` → `Factory app, two OTA definitions`
+  * `Serial Flasher Config` → `Flash Size` → `4MB` (required for OTA support)
 
-This example is released into the public domain or under the CC0 license, at your option.
+### Step 3: Verify Updated Table
+
+Repeat the same steps as in Step 1. You should now see:
+
+```
+# ESP-IDF Partition Table
+# Name, Type, SubType, Offset, Size, Flags
+nvs,data,nvs,0x9000,16K,
+otadata,data,ota,0xd000,8K,
+phy_init,data,phy,0xf000,4K,
+factory,app,factory,0x10000,1M,
+ota_0,app,ota_0,0x110000,1M,
+ota_1,app,ota_1,0x210000,1M,
+```
+
+## 5. Notes
+
+* This setup is essential for enabling OTA updates in future assignments.
+* The partition layout used here is one of ESP-IDF’s built-in defaults—no custom CSV files are required at this stage.
+* If your board has limited flash, ensure it supports at least 4MB before applying this configuration.
+* The partition tool (`gen_esp32part.py`) is part of the ESP-IDF SDK, so make sure your environment variables are correctly set.

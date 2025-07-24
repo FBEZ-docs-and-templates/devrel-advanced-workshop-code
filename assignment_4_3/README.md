@@ -1,99 +1,69 @@
-# ESP-IDF MQTT Example with Temperature Sensors
+# Assignment 4.3 -- Solution
 
-This example project demonstrates using MQTT over TCP to publish and subscribe to topics with the ESP32 platform. It supports reading temperature from either the ESP32’s internal temperature sensor or an external SHTC3 sensor, based on a configuration flag.
+This folder contains the solution for the assignment 4.3 of the ESP-IDF: Advanced workshop. 
 
-## Features
+## 1. Objective
 
-- Wi-Fi or Ethernet connectivity (selectable via `menuconfig`)
-- MQTT client for publishing/subscribing to topics
-- Configurable sensor mode: internal or external (SHTC3 via I2C)
-- Periodic temperature logging
-- Full MQTT event handling with diagnostic logging
+This project demonstrates how to enable **flash encryption** on an ESP32 device using ESP-IDF. It walks through checking the encryption status, enabling development-mode encryption, updating the partition table, and verifying the resulting eFuse changes.
 
 ---
 
-## Sensor Support
+## 2. Key Concepts
 
-You can choose between two sensor sources at compile time:
-
-- **Internal sensor**: Uses the ESP32’s onboard temperature sensor
-- **SHTC3 external sensor**: Connects via I2C and provides more accurate readings
-
-Selection is done through the `menuconfig` system. The default is the internal sensor.
+* **eFuses**: One-time programmable hardware configuration bits used to manage device security features.
+* **Flash Encryption**: Automatically encrypts and decrypts data stored in flash memory during reads/writes.
+* **Development Mode Encryption**: A non-production-safe mode allowing re-flashing with plaintext.
+* **Partition Table Offsets**: Adjustments needed to accommodate a larger bootloader after encryption is enabled.
 
 ---
 
-## Getting Started
+## 3. Features
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-username/esp-idf-mqtt-example.git
-cd esp-idf-mqtt-example
-````
-
-### 2. Open with Visual Studio Code
-
-Ensure you have the [Espressif VSCode extension](https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension) installed and set up correctly.
-
-* Open the folder in VSCode
-* Use the **ESP-IDF: Set Espressif Device Target** command to select your target (e.g., `esp32`)
-* Run **ESP-IDF: Configure project** to open the menuconfig interface
-
-### 3. Configure the project
-
-In the menuconfig interface:
-
-* **Example Configuration**
-
-  * Set **Wi-Fi SSID and Password**
-  * Set **MQTT Broker URL** (e.g., `mqtt://broker.hivemq.com`)
-  * Select **Sensor Type** (internal or SHTC3)
-* Optionally, adjust logging verbosity or MQTT settings under related sections
-
-### 4. Build, Flash and Monitor
-
-Use the VSCode Command Palette:
-
-* **ESP-IDF: Build Project**
-* **ESP-IDF: Flash (UART)**
-* **ESP-IDF: Monitor**
+* Query and inspect device eFuses to determine current encryption status.
+* Enable flash encryption in development mode via `menuconfig`.
+* Configure a compatible partition table to support encrypted bootloader.
+* Reset, flash, and verify the updated encryption status post-deployment.
+* Verbose bootloader logging for clearer understanding of encryption flow.
 
 ---
 
-## MQTT Topics
+## 4. Implementation Overview
 
-| Topic         | Direction | QoS | Description                   |
-| ------------- | --------- | --- | ----------------------------- |
-| `/topic/qos1` | Publish   | 1   | Sends test data on connection |
-| `/topic/qos0` | Publish   | 0   | Sends data after subscription |
-| `/topic/qos0` | Subscribe | 0   | Listens for incoming messages |
-| `/topic/qos1` | Subscribe | 1   | Subscribes then unsubscribes  |
+The project contains ESP-IDF-compatible source files and configuration settings aligned with the following steps:
+
+1. **Check Initial eFuse Status**
+   Use `idf.py efuse-summary` to confirm default zero values in key security-related eFuses.
+
+2. **Enable Flash Encryption**
+
+   * Navigate to: `Security Features` → `Enable flash encryption on boot`
+   * Set `Usage Mode` to `Development (Not secure)`
+
+3. **Adjust Bootloader Verbosity**
+
+   * Set `Bootloader log verbosity` to `Verbose` in `menuconfig` to aid debugging.
+
+4. **Configure Partition Table**
+   The bootloader’s encrypted version requires more space. Update the partition table offset to ensure compatibility.
+
+5. **Flash and Reset**
+
+   * Flash the project once to burn required eFuses (`BURN DEV` prompt).
+   * Reset the device, then flash again to apply encryption.
+
+6. **Re-check Encryption Status**
+   Run `idf.py efuse-summary` to verify changes:
+
+   * `SPI_BOOT_CRYPT_CNT` should be enabled.
+   * One `BLOCK_KEY` should store the encryption key with appropriate `KEY_PURPOSE`.
 
 ---
 
-## Example Output
+## 5. Notes
 
-```
-[APP] Free memory: 320000 bytes
-Temperature: 27.13 °C
-MQTT_EVENT_CONNECTED
-sent publish successful, msg_id=1234
-MQTT_EVENT_DATA
-TOPIC=/topic/qos0
-DATA=hello from broker
-```
+* **Warning**: Flash encryption is an irreversible operation. Even in development mode, certain eFuses will be permanently burned.
+* **Development Mode Limitation**: This mode is not secure for production. It allows unencrypted reflashing and disables certain protections.
+* **Reset Required**: After the initial burn, a manual reset is required before re-flashing to finalize encryption setup.
+* **Bootloader Growth**: The encryption mechanism increases bootloader size. Ensure the partition table offset accommodates this change.
+* **Security Awareness**: Even in a lab setting, it's good practice to review what each eFuse controls before proceeding.
 
----
-
-## Notes
-
-* The SHTC3 sensor should be connected to the default I2C pins (customizable via menuconfig).
-* Temperature readings are taken periodically at 1-second intervals during startup.
-* MQTT broker URI must use the format `mqtt://<hostname>` or `mqtt://<ip>`.
-
----
-
-## License
-
-This example is released into the public domain or under the CC0 license, at your option.
