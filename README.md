@@ -4,7 +4,7 @@ This repo contains the starting code and the solutions for the assignments given
 
 The folders contain the following
 
-* `assignment_0`: Starting code for the Part 1 and Part 2 assignments
+* `assignment_1_1_base`: Starting code for the Part 1 and Part 2 assignments
 * `assignment_1_1`: Solution for Assignment 1.1
 * `assignment_1_2`: Solution for Assignment 1.2
 * `assignment_1_3`: Solution for Assignment 1.3
