@@ -23,7 +23,7 @@ The table below provides for each assigment the corresponding starting code. You
 
 | Assignment         | Base Code          |
 |--------------------|--------------------|
-| assignment_1_1     | assignment_0       |
+| assignment_1_1     | assignment_1_1_base|
 | assignment_1_2     | assignment_1_1     |
 | assignment_1_3     | any                |
 | assignment_2_1     | assignment_1_2     |
