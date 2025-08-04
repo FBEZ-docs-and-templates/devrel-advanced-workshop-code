@@ -2,7 +2,7 @@ menu "Alarm Component Configuration"
 
     config ALARM_THRESHOLD_PERCENT
         int "Alarm threshold percent"
-        default 2
+        default 20
         range 0 100
         help
             Set the threshold percent for the alarm (e.g., 2 for 2% chance).

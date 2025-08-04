@@ -17,9 +17,9 @@ void app_main(void)
     alarm_t *alarm = alarm_create();
     cloud_manager_t *cloud = cloud_manager_create();
 
-    printf("Connecting...\n");
+    ESP_LOGI("APP", "Connecting...");
     ESP_ERROR_CHECK(cloud_manager_connect(cloud));
-    printf("Connected!\n");
+    ESP_LOGI("APP", "Connected!");
 
     int64_t last_time = esp_timer_get_time();
     bool previous_alarm_set = false;
@@ -38,7 +38,7 @@ void app_main(void)
 
         bool alarm_state = is_alarm_set(alarm);
         if (alarm_state && !previous_alarm_set) {
-            printf("ALARM ON!!\n");
+            ESP_LOGI("APP", "Alarm ON!!");
             cloud_manager_send_alarm(cloud);
         }
         previous_alarm_set = alarm_state;

@@ -36,7 +36,7 @@ void app_main(void)
 
         bool alarm_state = is_alarm_set(alarm);
         if (alarm_state && !previous_alarm_set) {
-            printf("ALARM ON!!\n");
+            ESP_LOGI("APP", "ALARM ON!!");
             cloud_manager_send_alarm(cloud);
         }
         previous_alarm_set = alarm_state;

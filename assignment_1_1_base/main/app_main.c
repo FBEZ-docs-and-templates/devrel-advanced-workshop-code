@@ -161,7 +161,7 @@ void app_main(void)
 
         
         if(is_alarm_set(alarm) && !previous_alarm_set){ // to avoid multiple messages
-            printf("ALARM ON!!\n");
+            ESP_LOGI("APP", "ALARM ON!!");
         }
         previous_alarm_set = is_alarm_set(alarm);
 

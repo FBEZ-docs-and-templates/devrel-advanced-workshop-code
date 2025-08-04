@@ -38,7 +38,7 @@ static void alarm_event_handler(void* handler_arg, esp_event_base_t base, int32_
     
     bool alarm_state = is_alarm_set(alarm);
     if (alarm_state && !previous_alarm_set) {
-        printf("ALARM ON!!\n");
+        ESP_LOGI("APP","Alarm ON!!");
         cloud_manager_send_alarm(cloud);
     }
     previous_alarm_set = alarm_state;
@@ -62,9 +62,9 @@ void app_main(void)
     alarm = alarm_create();
     cloud = cloud_manager_create();
 
-    printf("Connecting...\n");
+    ESP_LOGI("APP","Connecting...");
     ESP_ERROR_CHECK(cloud_manager_connect(cloud));
-    printf("Connected!\n");
+    ESP_LOGI("APP","Connected");
 
     // Register event handlers
     ESP_ERROR_CHECK(esp_event_handler_register(TEMP_EVENT_BASE, TEMP_EVENT_MEASURE, temp_event_handler, NULL));
