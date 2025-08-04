@@ -13,9 +13,6 @@
 #define GPIO_INPUT_IO_9    9
 #define ESP_INTR_FLAG_DEFAULT 0
 
-
-static const char *TAG = "assignment2_2";
-
 // EVENTS
 ESP_EVENT_DEFINE_BASE(TEMP_EVENT_BASE);
 ESP_EVENT_DEFINE_BASE(ALARM_EVENT_BASE);
@@ -35,9 +32,9 @@ typedef enum {
 // GPIO
 
 // ISR handler
-static void IRAM_ATTR gpio_isr_handler(void* arg) {
-    uint32_t gpio_num = (uint32_t) arg;
-    ESP_EARLY_LOGI(TAG, "GPIO[%d] interrupt triggered", gpio_num);
+static void gpio_isr_handler(void* arg) {
+    // uint32_t gpio_num = (uint32_t) arg;
+    // ESP_EARLY_LOGI(TAG, "GPIO[%d] interrupt triggered", gpio_num);
     esp_event_isr_post(ALARM_EVENT_BASE, ALARM_EVENT_BUTTON, NULL, 0, 0);
 }
 
@@ -56,7 +53,7 @@ static void temp_event_handler(void* handler_arg, esp_event_base_t base, int32_t
 
 static void alarm_event_button_handler(void* handler_arg, esp_event_base_t base, int32_t id, void* event_data) {
     
-        printf("ALARM ON!!\n");
+        ESP_LOGI("APP","Alarm ON! - Button");
         cloud_manager_send_alarm(cloud);
 
 }
@@ -66,7 +63,7 @@ static void alarm_event_handler(void* handler_arg, esp_event_base_t base, int32_
     
     bool alarm_state = is_alarm_set(alarm);
     if (alarm_state && !previous_alarm_set) {
-        printf("ALARM ON!!\n");
+        ESP_LOGI("APP","Alarm ON! - Sensor");
         cloud_manager_send_alarm(cloud);
     }
     previous_alarm_set = alarm_state;
@@ -90,9 +87,9 @@ void app_main(void)
     alarm = alarm_create();
     cloud = cloud_manager_create();
 
-    printf("Connecting...\n");
+    ESP_LOGI("APP", "Connecting...");
     ESP_ERROR_CHECK(cloud_manager_connect(cloud));
-    printf("Connected!\n");
+    ESP_LOGI("APP","Connected!");
 
     // Register event handlers
     ESP_ERROR_CHECK(esp_event_handler_register(TEMP_EVENT_BASE, TEMP_EVENT_MEASURE, temp_event_handler, NULL));
